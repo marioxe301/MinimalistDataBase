@@ -4,23 +4,29 @@
 struct Metadatabase 
 {
     int size; //tamaño default 1MB
-    int MetaTablesP; //puntero al metadata de tablas
     int BlockSize;
     int NumberBlocks;
 };
 
 struct MetaDataBitMap{ //Metadata de Bloques Libres
+    int TablesSpace; //Espacio de tabla libre
+    int MetaTablesP; //puntero al metadata de tablas
     int FreeBlock; //Posision de bloque libre Bytes
-    int DataPointerFreeR; //Pos de bloque con espacion aun disponible
+    int FreeSpaceBlock; //Espacio disponible del bloque
 };
 
 struct MetaDataTables
 {
     char name[30]; //nombre de la tabla
     int DataPointer; //poscicion en bytes de los registros
-    int ColumnPointer; // poscicion de la columna en archivo externo 
-    int RegisterSize;
+    int ColumnCount; // cantidad de columnas  
+    int RegisterSize; // tamaño del registros
+    bool Deleted; // indicador de borrado de tabla
 };
+
+/*struct TableReference{
+    char TnameReference[30];
+};*/
 
 struct MetaDataColumn{
     char nameT[30]; // nombre de la tabla refereciada
@@ -29,12 +35,13 @@ struct MetaDataColumn{
 };
 
 struct Registers{
-    char *Data; //Data de la tabla
     int NextData;
+    bool Deleted;
+    char *Data; //Data de la tabla
 };
 
 struct Blocks{
-    int sizeB;
+    int size;
     char *Data; // bloque de dato
     int nextBlock; // apuntador al siguiente bloque disponible en caso de que se llene el DB
 };
@@ -50,5 +57,21 @@ void Update();
 void Select();
 
 void CreateDBFile(const char*name,Metadatabase mtb,MetaDataBitMap mdbm,Blocks bl,int bc);
+void MetadaUpdate(const char*name);
+int FreeBlock(const char*name);
+int FreeBlockSpace(const char*name);
+int TableSpaceP(const char*name);
+int FreeTableSpace(const char*name);
+int DataBaseTable(const char*name);
+
+void CreateTable(const char*name);
+
+void ChangeDataBase();
+bool ExistDataBase(const char*name);
+
+
+void ListTables(const char*name);
+void ListTablesColumns(const char*name);
+void UpdateRegisterSize(const char*name);
 
 #endif // !F_H
