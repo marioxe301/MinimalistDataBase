@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <fstream>
 #include <string>
+#include <cstring>
 #include <sstream>
 
 using namespace std;
@@ -12,7 +13,10 @@ static string Table;
 void Menu(){
     bool a = true;
     while(a){
+        
         int b= 0;
+        int c=0;
+        string db;
         cout<<"------------------------------------------------------------------------\n\n\n";
         cout<<"0.Seleccionar Base de Datos\n";
         cout<<"1.Crear Base de datos\n";
@@ -24,7 +28,8 @@ void Menu(){
         cout<<"7.Crear Tabla\n";
         cout<<"8.Eliminar Tabla\n";
         cout<<"9.Listar Tablas\n";
-        cout<<"10.Salir\n";
+        cout<<"10.Ver Database actual\n";
+        cout<<"11.Salir\n";
         cin>>b;
 
         switch (b)
@@ -38,7 +43,11 @@ void Menu(){
                 MetadaUpdate(ActualDB.c_str());
                 break;
             case 2:
-                DropDatabase(ActualDB.c_str());
+                system("clear");
+        
+                cout<<"Escriba el nombre de la base de dato a borrar: ";cin>>db;
+                DropDatabase(db.c_str());
+
                 break;
             case 3:
                 break;
@@ -58,12 +67,23 @@ void Menu(){
 
                 break;
             case 8:
-                
+                c = PosTable(ActualDB.c_str());
+                DropTable(ActualDB.c_str(),c);
+
                 break;
             case 9:
                 ListTables(ActualDB.c_str());
                 break;
             case 10:
+                system("clear");
+                cout<<"Escriba a que base de datos quiere moverse: "; cin>>ActualDB;
+                if(ExistDataBase(ActualDB.c_str())){
+                    cout<<"Base de datos actual: "<<ActualDB<<"\n";
+                }else{
+                    cout<<"No existe la base de datos\n";
+                }
+                break;
+            case 11:
                 a=false;
                 break;
             default:
@@ -310,15 +330,17 @@ bool ExistDataBase(const char*name){
     }
 }
 
-void CreateTable(const char*name){
+void CreateTable(const char*name)
+{
+    system("clear");
     int pos = FreeTableSpace(name);
     int RegisterSize=0;
     MetaDataTables mT;
     MetaDataColumn mC;
     string datatype;
 
-    ofstream BDfile(name,ios::out |ios::in| ios::binary);
-    BDfile.seekp(pos);
+    ofstream BDfile(name,ios::out|ios::in|ios::binary|ios::app);
+    //BDfile.seekp(pos);
     
     cout<<"Ingrese el nombre de la tabla: "; cin>>mT.name;
     cout<<"Cantidad de columnas a ingresar: ";cin>>mT.ColumnCount;
@@ -359,19 +381,27 @@ void CreateTable(const char*name){
             cout<<"Tipo de dato incorrecto\n";
         }
         
-        BDfile.seekp(pos);
+    }
+        /*BDfile.seekp(pos);
         cout<<"Tamaño total del registro: "<< RegisterSize<<endl;
 
         mT.RegisterSize=RegisterSize;
 
-        BDfile.write(reinterpret_cast<const char*>(&mT),sizeof(MetaDataTables));
+        BDfile.write(reinterpret_cast<const char*>(&mT),sizeof(MetaDataTables));*/
         BDfile.close();
 
-    }
+        ofstream Test(name,ios::in |ios::out |ios::binary);
+        Test.seekp(pos);
+        mT.RegisterSize = RegisterSize;
+        cout<<"Tamaño total del registro: "<< RegisterSize<<endl;
+        Test.write(reinterpret_cast<const char*>(&mT),sizeof(MetaDataTables));
+        Test.close();
 }
 
+
+
 void ListTables(const char*name){
-    
+    system("clear");
     int pos = TableSpaceP(name);
     int posfinal = FreeTableSpace(name);
     MetaDataTables mT;
@@ -380,26 +410,34 @@ void ListTables(const char*name){
 
     ifstream BDfile(name,ios::in | ios::binary);
     BDfile.seekg(pos);
+    int a = BDfile.tellg();
     
-    while(BDfile.tellg()<posfinal){
+    while(a<posfinal){
 
     BDfile.read(reinterpret_cast<char*>(&mT),sizeof(MetaDataTables));
-    cout<<"Tabla ubicada en el byte: "<<BDfile.tellg()<<" Tabla: "<<mT.name<<"\n";
-    
-    for(int i=0;i<mT.ColumnCount;i++){
-        BDfile.read(reinterpret_cast<char*>(&mC),sizeof(MetaDataColumn));
-        if(mC.datatype=='i'|| mC.datatype=='d'){
-            cout<<"Columna: "<<mC.nameT<<"\n";
-            cout<<"Tipo de Dato: "<<mC.datatype<<"\n";
-            cout<<endl;
-        }else{
-            cout<<"Columna: "<<mC.nameT<<"\n";
-            cout<<"Tipo de Dato: "<<mC.datatype<<"\n";
-            cout<<"Tamaño de varchar: "<<mC.datatype<<"\n";
-            cout<<endl;
+
+    if(mT.Deleted==false){
+        cout<<"Tabla ubicada en el byte: "<<a<<" Tabla: "<<mT.name<<"\n";
+
+        for(int i=0;i<mT.ColumnCount;i++){
+
+            BDfile.read(reinterpret_cast<char*>(&mC),sizeof(MetaDataColumn));
+
+            if(mC.datatype=='i'|| mC.datatype=='d'){
+                cout<<"Columna: "<<mC.nameT<<"\n";
+                cout<<"Tipo de Dato: "<<mC.datatype<<"\n";
+                cout<<endl;
+            }else{
+                cout<<"Columna: "<<mC.nameT<<"\n";
+                cout<<"Tipo de Dato: "<<mC.datatype<<"\n";
+                cout<<"Tamaño de varchar: "<<mC.datatype<<"\n";
+                cout<<endl;
+            }
         }
     }
 
+    a = BDfile.tellg();
+    //cout<<"";
     }
 
     BDfile.close();
@@ -407,6 +445,7 @@ void ListTables(const char*name){
 }
 
 void DropDatabase(const char *name){
+    system("clear");
     if(ExistDataBase(name)){
     remove(name);
     }else
@@ -415,3 +454,63 @@ void DropDatabase(const char *name){
     }
     
 }
+
+void DropTable(const char*name,int pos){
+    MetaDataTables mt = TableReturn(name,pos);
+
+    ofstream BDfile(name,ios::out|ios::in|ios::binary);
+    BDfile.seekp(pos);
+
+    mt.Deleted = true;
+
+    BDfile.write(reinterpret_cast<char*>(&mt),sizeof(MetaDataTables));
+    BDfile.close();
+
+
+}
+
+int PosTable(const char*name){
+    int pos = TableSpaceP(name);
+    int posfinal = FreeTableSpace(name);
+    char table[30];
+
+    cout<<"Escriba el nombre de la tabla: ";cin>>table;
+
+    ifstream BDfile(name,ios::in|ios::binary);
+    MetaDataTables mT;
+    MetaDataColumn mC;
+    BDfile.seekg(pos);
+
+    int a = BDfile.tellg();
+
+    while(a<posfinal){
+        BDfile.read(reinterpret_cast<char*>(&mT),sizeof(MetaDataTables));
+        if(mT.Deleted==false){
+            if(mT.name==table){
+                a = BDfile.tellg();
+                BDfile.close();
+                return a;
+            }
+
+            for(int i=0;i<mT.ColumnCount;i++){
+                BDfile.read(reinterpret_cast<char*>(&mC),sizeof(MetaDataColumn));
+            }
+        }
+        a = BDfile.tellg();
+    }
+    BDfile.close();
+    return -1;
+}
+
+MetaDataTables TableReturn(const char* name,int pos){
+    ifstream BDfile(name,ios::in|ios::binary);
+    MetaDataTables mT;
+    BDfile.seekg(pos);
+
+    BDfile.read(reinterpret_cast<char*>(&mT),sizeof(MetaDataTables));
+    BDfile.close();
+    return mT;
+}
+
+
+

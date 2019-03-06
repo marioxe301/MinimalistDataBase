@@ -62,11 +62,14 @@ int FreeBlockSpace(const char*name);//t
 int TableSpaceP(const char*name); //t
 int FreeTableSpace(const char*name); //t
 void ListTables(const char*name);//t
+int PosTable(const char*name);
+
 
 //int DataBaseTable(const char*name); //t
 
-void CreateTable(const char*name);//
-void DropTable(const char*name);
+void CreateTable(const char*name);//t
+void DropTable(const char*name,int pos);
+MetaDataTables TableReturn(const char* name,int pos);
 
 
 void ChangeDataBase();//t
