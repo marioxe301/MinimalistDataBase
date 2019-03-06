@@ -8,6 +8,7 @@
 
 using namespace std;
 static string ActualDB;
+static string Table;
 void Menu(){
     bool a = true;
     while(a){
@@ -15,12 +16,15 @@ void Menu(){
         cout<<"------------------------------------------------------------------------\n\n\n";
         cout<<"0.Seleccionar Base de Datos\n";
         cout<<"1.Crear Base de datos\n";
-        cout<<"2.Eliminar Base de dato\n";
+        cout<<"2.Eliminar Base de datos\n";
         cout<<"3.Insertar datos a Tabla\n";
         cout<<"4.Borrar datos de Tabla\n";
         cout<<"5.Update datos de tabla\n";
         cout<<"6.Select datos de Tabla\n";
-        cout<<"7.Salir\n";
+        cout<<"7.Crear Tabla\n";
+        cout<<"8.Eliminar Tabla\n";
+        cout<<"9.Listar Tablas\n";
+        cout<<"10.Salir\n";
         cin>>b;
 
         switch (b)
@@ -31,9 +35,10 @@ void Menu(){
             case 1:
                 CreateDatabase();
 
+                MetadaUpdate(ActualDB.c_str());
                 break;
             case 2:
-
+                DropDatabase(ActualDB.c_str());
                 break;
             case 3:
                 break;
@@ -47,6 +52,18 @@ void Menu(){
                 
                 break;
             case 7:
+                CreateTable(ActualDB.c_str());
+
+                MetadaUpdate(ActualDB.c_str());
+
+                break;
+            case 8:
+                
+                break;
+            case 9:
+                ListTables(ActualDB.c_str());
+                break;
+            case 10:
                 a=false;
                 break;
             default:
@@ -74,7 +91,7 @@ void CreateDatabase(){
     cout<<"------------------------------------------------------------------------\n\n\n";
     cout<<"Escriba el nombre de la Base de datos\n";
     cout<<"Nombre: "; cin>>Name;
-    DBName<<Name.c_str()<<".txt";
+    DBName<<Name.c_str();
     cout<<"Escriba el tamaño de la base de datos\n";
     cout<<"Tamaño en MB: "; cin>>DBSize;
     cout<<"Escriba el tamaño de los bloques\n";
@@ -110,7 +127,7 @@ void CreateDatabase(){
     
     CreateDBFile(DBName.str().c_str(),mtd,mdbm,bl,BlockCount);
 
-    MetadaUpdate(DBName.str().c_str());    
+    //MetadaUpdate(DBName.str().c_str());    
 
     ActualDB = DBName.str().c_str();
 
@@ -126,13 +143,14 @@ void CreateDBFile(const char*name,Metadatabase mtb,MetaDataBitMap mdbm,Blocks bl
     }
     BDfile.write(reinterpret_cast<const char*>(&mtb),sizeof(Metadatabase));
     BDfile.write(reinterpret_cast<const char*>(&mdbm),sizeof(MetaDataBitMap));
-
+    int a = BDfile.tellp();
     for(int i = 0; i < bc; i++)
     {
         BDfile.write(reinterpret_cast<const char *>(&bl.size),sizeof(int));
         BDfile.write(&bl.Data[0],sizeof(char)*bl.size);
         BDfile.write(reinterpret_cast<const char*>(&bl.nextBlock),sizeof(int));
-    }
+        a = BDfile.tellp();
+    }    
 
     BDfile.close();
 }
@@ -143,7 +161,8 @@ void MetadaUpdate(const char*name){
     int FBS = FreeBlockSpace(name);
     int FB = FreeBlock(name);
 
-    ofstream BDfile(name,ios::out | ios::binary);
+    MetaDataBitMap mtbm;
+    ofstream BDfile(name,ios::out|ios::in| ios::binary );
     if(!BDfile){
       cout<<"Error al abrir el archivo"<<endl;  
     }
@@ -151,12 +170,12 @@ void MetadaUpdate(const char*name){
     BDfile.seekp(0,ios::beg);
 
     BDfile.seekp(sizeof(Metadatabase));
+    mtbm.FreeBlock = FB;
+    mtbm.FreeSpaceBlock= FBS;
+    mtbm.TablesSpace = FTBSP;
+    mtbm.MetaTablesP = TBSP;
 
-    BDfile.write(reinterpret_cast<const char *>(&FTBSP),sizeof(int));
-    BDfile.write(reinterpret_cast<const char*>(&TBSP),sizeof(int));
-    BDfile.write(reinterpret_cast<const char*>(&FB),sizeof(int));
-    BDfile.write(reinterpret_cast<const char*>(&FBS),sizeof(int));
-
+    BDfile.write(reinterpret_cast<const char *>(&mtbm),sizeof(MetaDataBitMap));
     BDfile.close();
 
 }
@@ -251,6 +270,7 @@ int FreeTableSpace(const char*name){
     if(!BDfile){
       cout<<"Error al abrir el archivo"<<endl;  
     }
+
     Metadatabase mtb;
     int position=0;
 
@@ -292,13 +312,106 @@ bool ExistDataBase(const char*name){
 
 void CreateTable(const char*name){
     int pos = FreeTableSpace(name);
-    int cantidadColu = 0;
-    char name[30]="";
-
+    int RegisterSize=0;
     MetaDataTables mT;
-    ofstream BDfile(name,ios::out | ios::binary);
+    MetaDataColumn mC;
+    string datatype;
+
+    ofstream BDfile(name,ios::out |ios::in| ios::binary);
     BDfile.seekp(pos);
     
+    cout<<"Ingrese el nombre de la tabla: "; cin>>mT.name;
+    cout<<"Cantidad de columnas a ingresar: ";cin>>mT.ColumnCount;
+    mT.Deleted = false;
+    mT.RegisterSize = 0;
+    int a = 0;
 
+    BDfile.write(reinterpret_cast<const char*>(&mT),sizeof(MetaDataTables));
 
+    while(a<mT.ColumnCount){
+        cout<<"Ingrese el tipo de dato de la columna "<<a+1<<" \n";
+        cout<<"Tipos de datos: int, double, varchar\n";
+        cin>>datatype;
+
+        if(datatype=="int"){
+            cout<<"Nombre de la columna: ";cin>>mC.nameT;
+            mC.varSize=0;
+            mC.datatype = 'i';
+            BDfile.write(reinterpret_cast<const char*>(&mC),sizeof(MetaDataColumn));
+            RegisterSize+=4;
+            a++;    
+        }else if(datatype=="double"){
+            cout<<"Nombre de la columna: ";cin>>mC.nameT;
+            mC.varSize=0;
+            mC.datatype = 'd';
+            BDfile.write(reinterpret_cast<const char*>(&mC),sizeof(MetaDataColumn));
+            RegisterSize+=8;
+            a++;
+        }else if(datatype=="varchar"){
+            cout<<"Nombre de la columna: ";cin>>mC.nameT;
+            cout<<"Tamaño del varchar(1-4000): "; cin>>mC.varSize;
+            mC.datatype = 'v';
+            BDfile.write(reinterpret_cast<const char*>(&mC),sizeof(MetaDataColumn));
+            RegisterSize+=mC.varSize;
+            a++;
+        }else
+        {
+            cout<<"Tipo de dato incorrecto\n";
+        }
+        
+        BDfile.seekp(pos);
+        cout<<"Tamaño total del registro: "<< RegisterSize<<endl;
+
+        mT.RegisterSize=RegisterSize;
+
+        BDfile.write(reinterpret_cast<const char*>(&mT),sizeof(MetaDataTables));
+        BDfile.close();
+
+    }
+}
+
+void ListTables(const char*name){
+    
+    int pos = TableSpaceP(name);
+    int posfinal = FreeTableSpace(name);
+    MetaDataTables mT;
+    MetaDataColumn mC;
+    
+
+    ifstream BDfile(name,ios::in | ios::binary);
+    BDfile.seekg(pos);
+    
+    while(BDfile.tellg()<posfinal){
+
+    BDfile.read(reinterpret_cast<char*>(&mT),sizeof(MetaDataTables));
+    cout<<"Tabla ubicada en el byte: "<<BDfile.tellg()<<" Tabla: "<<mT.name<<"\n";
+    
+    for(int i=0;i<mT.ColumnCount;i++){
+        BDfile.read(reinterpret_cast<char*>(&mC),sizeof(MetaDataColumn));
+        if(mC.datatype=='i'|| mC.datatype=='d'){
+            cout<<"Columna: "<<mC.nameT<<"\n";
+            cout<<"Tipo de Dato: "<<mC.datatype<<"\n";
+            cout<<endl;
+        }else{
+            cout<<"Columna: "<<mC.nameT<<"\n";
+            cout<<"Tipo de Dato: "<<mC.datatype<<"\n";
+            cout<<"Tamaño de varchar: "<<mC.datatype<<"\n";
+            cout<<endl;
+        }
+    }
+
+    }
+
+    BDfile.close();
+
+}
+
+void DropDatabase(const char *name){
+    if(ExistDataBase(name)){
+    remove(name);
+    }else
+    {
+        cout<<"No existe la base de datos a borrar\n";
+    }
+    
 }

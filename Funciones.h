@@ -46,32 +46,32 @@ struct Blocks{
     int nextBlock; // apuntador al siguiente bloque disponible en caso de que se llene el DB
 };
 
-void Menu();
-void CreateDatabase();
-void DropDatabase();
-void CreateTable();
-void DropTable();
+void Menu();//t
+void CreateDatabase(); //t
+void DropDatabase(const char *name); //t
+
 void Insert();
 void Delete();
 void Update();
 void Select();
 
-void CreateDBFile(const char*name,Metadatabase mtb,MetaDataBitMap mdbm,Blocks bl,int bc);
-void MetadaUpdate(const char*name);
-int FreeBlock(const char*name);
-int FreeBlockSpace(const char*name);
-int TableSpaceP(const char*name);
-int FreeTableSpace(const char*name);
-int DataBaseTable(const char*name);
+void CreateDBFile(const char*name,Metadatabase mtb,MetaDataBitMap mdbm,Blocks bl,int bc);//t
+void MetadaUpdate(const char*name);//t
+int FreeBlock(const char*name);//t
+int FreeBlockSpace(const char*name);//t
+int TableSpaceP(const char*name); //t
+int FreeTableSpace(const char*name); //t
+void ListTables(const char*name);//t
 
-void CreateTable(const char*name);
+//int DataBaseTable(const char*name); //t
 
-void ChangeDataBase();
-bool ExistDataBase(const char*name);
+void CreateTable(const char*name);//
+void DropTable(const char*name);
 
 
-void ListTables(const char*name);
+void ChangeDataBase();//t
+bool ExistDataBase(const char*name);//t
+
+
 void ListTablesColumns(const char*name);
-void UpdateRegisterSize(const char*name);
-
 #endif // !F_H
