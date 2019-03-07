@@ -63,6 +63,8 @@ int TableSpaceP(const char*name); //t
 int FreeTableSpace(const char*name); //t
 void ListTables(const char*name);//t
 int PosTable(const char*name);
+std::vector <MetaDataColumn> ReturnColumn();
+int returnBlockSize(const char*name);
 
 
 //int DataBaseTable(const char*name); //t

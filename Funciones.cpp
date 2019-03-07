@@ -4,12 +4,12 @@
 #include <stdio.h>
 #include <fstream>
 #include <string>
-#include <cstring>
 #include <sstream>
+#include <vector>
 
 using namespace std;
 static string ActualDB;
-static string Table;
+static char Table[30];
 void Menu(){
     bool a = true;
     while(a){
@@ -50,6 +50,8 @@ void Menu(){
 
                 break;
             case 3:
+                    cout<<"Escriba el nombre de la tabla: ";cin>>Table;
+                    Insert(Table);
                 break;
             case 4:
                 
@@ -67,7 +69,8 @@ void Menu(){
 
                 break;
             case 8:
-                c = PosTable(ActualDB.c_str());
+                cout<<"Escriba el nombre de la tabla: ";cin>>Table;
+                c = PosTable(ActualDB.c_str(),Table);
                 DropTable(ActualDB.c_str(),c);
 
                 break;
@@ -254,7 +257,7 @@ int FreeBlockSpace(const char*name){
     BDfile.read(reinterpret_cast<char*>(&bl.Data[0]),sizeof(char)*mtb.BlockSize);
     BDfile.read(reinterpret_cast<char*>(&bl.nextBlock),sizeof(int));
 
-    cout<<"prueba: "<<&bl.Data[0]<<endl;
+    //cout<<"prueba: "<<&bl.Data[0]<<endl;
 
     space = strlen(&bl.Data[0]);
     position = mtb.BlockSize - space;
@@ -330,8 +333,7 @@ bool ExistDataBase(const char*name){
     }
 }
 
-void CreateTable(const char*name)
-{
+void CreateTable(const char*name){
     system("clear");
     int pos = FreeTableSpace(name);
     int RegisterSize=0;
@@ -397,8 +399,6 @@ void CreateTable(const char*name)
         Test.write(reinterpret_cast<const char*>(&mT),sizeof(MetaDataTables));
         Test.close();
 }
-
-
 
 void ListTables(const char*name){
     system("clear");
@@ -469,12 +469,10 @@ void DropTable(const char*name,int pos){
 
 }
 
-int PosTable(const char*name){
+int PosTable(const char*name,char Table[30]){
     int pos = TableSpaceP(name);
     int posfinal = FreeTableSpace(name);
-    char table[30];
-
-    cout<<"Escriba el nombre de la tabla: ";cin>>table;
+    
 
     ifstream BDfile(name,ios::in|ios::binary);
     MetaDataTables mT;
@@ -486,7 +484,7 @@ int PosTable(const char*name){
     while(a<posfinal){
         BDfile.read(reinterpret_cast<char*>(&mT),sizeof(MetaDataTables));
         if(mT.Deleted==false){
-            if(mT.name==table){
+            if(mT.name==Table){
                 a = BDfile.tellg();
                 BDfile.close();
                 return a;
@@ -512,5 +510,105 @@ MetaDataTables TableReturn(const char* name,int pos){
     return mT;
 }
 
+void Insert(char Table[30]){
+
+    int blsize = returnBlockSize(ActualDB.c_str());
+    int posTabl = PosTable(ActualDB.c_str(),Table);
+    MetaDataTables mtR = TableReturn(ActualDB.c_str(),posTabl);
+
+    //variables a usar
+    int Intinsert=0;
+    double DoubInsert=0;
+    string CharInsert2;
+
+    Registers rg;
+
+    int freeblock = FreeBlock(ActualDB.c_str());
+    int FreeBlockSp = FreeBlockSpace(ActualDB.c_str());
+
+    char *CharInsert;
+
+    vector <MetaDataColumn> mtcls = ReturnColumn();
+
+    ofstream DBfile(ActualDB.c_str(),ios::in | ios::out | ios::binary);
+    
+    DBfile.seekp(freeblock+4);
+
+    int posRegis=0;
+    bool borrado = false;
+    rg.Data = new char[mtR.RegisterSize+5];
+    rg.Deleted = false;
+
+    memcpy(&rg.Data[posRegis],&rg.Deleted,sizeof(bool));
+    posRegis+=sizeof(bool);
+
+    for(int i=0;i<mtcls.size();i++){
+        if(mtcls[i].datatype == 'i'){
+            cout<<"Escriba el valor de la columna"<<mtcls[i].nameT;cin>>Intinsert;
+            memcpy(&rg.Data[posRegis],&Intinsert,sizeof(int));
+            posRegis+=sizeof(int);
+        }else if(mtcls[i].datatype == 'd'){
+            cout<<"Escriba el valor de la columna"<<mtcls[i].nameT;cin>>DoubInsert;
+            memcpy(&rg.Data[posRegis],&DoubInsert,sizeof(double));
+            posRegis+=sizeof(double);
+        }else{
+            bool a = true;
+            while(a){
+                cout<<"\nEscriba el valor de la columna"<<mtcls[i].nameT;cin>>CharInsert2;
+                if(CharInsert2.length<=mtcls[i].varSize){
+                    a = false;
+                    memcpy(&CharInsert[posRegis],&CharInsert2,CharInsert2.length);
+                    posRegis+=CharInsert2.length;
+                }
+
+            }
+        }
+    }
+
+    if(mtR.RegisterSize<= blsize){
+        rg.NextData = 0;
+        //memcpy(&rg.Data[mtR.RegisterSize-5],&rg.NextData,sizeof(int));
+
+        DBfile.write(reinterpret_cast<char*>(&rg.Deleted),sizeof(bool));
+        DBfile.write(&rg.Data[0],sizeof(mtR.RegisterSize));
+        DBfile.write(reinterpret_cast<const char*>(&rg.NextData),sizeof(int));
+
+        DBfile.close();
+    }
+
+
+
+
+}
+
+vector <MetaDataColumn> ReturnColumn(){
+    int posTa = PosTable(ActualDB.c_str());
+    MetaDataTables mt;
+    vector <MetaDataColumn> ret;
+    MetaDataColumn clm;
+    ifstream DBfile(ActualDB.c_str(),ios::in|ios::binary);
+
+    DBfile.seekg(posTa);
+    DBfile.read(reinterpret_cast<char*>(&mt),sizeof(MetaDataTables));
+
+    for(int i=0;i<mt.ColumnCount;i++){
+        DBfile.read(reinterpret_cast<char*>(&clm),sizeof(MetaDataColumn));
+        ret.push_back(clm);
+    }
+
+    return ret;
+}
+
+int returnBlockSize(const char*name){
+    ifstream DBfile(name,ios::in | ios::binary);
+    Metadatabase mdb;
+
+    DBfile.seekg(0,ios::beg);
+    DBfile.read(reinterpret_cast<char*>(&mdb),sizeof(Metadatabase));
+
+    DBfile.close();
+
+    return mdb.BlockSize;
+}
 
 
